@@ -1,10 +1,50 @@
-<!DOCTYPE html>
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
   <title>Đặt cơm</title>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <style>
@@ -20,7 +60,7 @@
       min-height: 100vh;
       display: flex;
       position: relative;
-      overflow-y: auto; /* Enable vertical scrolling */
+      overflow-y: auto;
     }
 
     body::before {
@@ -41,11 +81,11 @@
     }
 
     .sidebar {
-      width: 200px; /* Further reduced for more content space */
+      width: 200px;
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(10px);
       padding: 15px;
-      position: sticky; /* Keep sidebar visible while scrolling */
+      position: sticky;
       top: 0;
       height: 100vh;
       box-shadow: 2px 0 10px rgba(0,0,0,0.1);
@@ -94,11 +134,10 @@
     .content {
       flex: 1;
       padding: 25px;
-      overflow-y: auto; /* Enable scrolling for content */
-      min-height: 100vh; /* Ensure content fills viewport */
+      overflow-y: auto;
+      min-height: 100vh;
     }
 
-    /* Custom scrollbar */
     .content::-webkit-scrollbar {
       width: 8px;
     }
@@ -119,8 +158,8 @@
     }
 
     .section {
-      max-width: 950px; /* Slightly increased */
-      margin: 0 auto 20px; /* Added bottom margin */
+      max-width: 950px;
+      margin: 0 auto 20px;
       background: rgba(255, 255, 255, 0.95);
       padding: 20px;
       border-radius: 16px;
@@ -245,7 +284,7 @@
     }
 
     #foodImage {
-      max-width: 75%; /* Further reduced */
+      max-width: 75%;
       height: auto;
       margin: 12px auto;
       border-radius: 12px;
@@ -260,7 +299,7 @@
     }
 
     #userAvatar {
-      width: 70px; /* Further reduced */
+      width: 70px;
       height: 70px;
       border-radius: 50%;
       margin: 0 auto 12px;
@@ -289,7 +328,7 @@
     }
 
     #paymentContainer img {
-      width: 160px; /* Smaller QR code */
+      width: 160px;
       margin: 10px auto;
       border-radius: 12px;
     }
@@ -301,7 +340,7 @@
     }
 
     .order-table th, .order-table td {
-      padding: 6px; /* Tighter padding */
+      padding: 6px;
       text-align: left;
       border-bottom: 1px solid #eee;
       font-size: 12px;
@@ -318,10 +357,23 @@
     }
 
     .order-table img {
-      width: 30px; /* Smaller images */
+      width: 30px;
       height: 30px;
       border-radius: 50%;
       object-fit: cover;
+    }
+
+    .qr-button {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: #4CAF50;
+      font-size: 16px;
+      transition: color 0.3s;
+    }
+
+    .qr-button:hover {
+      color: #388E3C;
     }
 
     .about-section {
@@ -344,6 +396,56 @@
       font-size: 16px;
     }
 
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    .modal-content {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+      position: relative;
+    }
+
+    .modal-content h3 {
+      margin-bottom: 15px;
+    }
+
+    .modal-content #qrcode {
+      margin: 15px auto;
+      display: flex;
+      justify-content: center;
+    }
+
+    .close-button {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 20px;
+      color: #333;
+      cursor: pointer;
+      transition: color 0.3s;
+    }
+
+    .close-button:hover {
+      color: #e53935;
+    }
+
     @media (max-width: 768px) {
       .sidebar {
         width: 160px;
@@ -364,6 +466,9 @@
       .sidebar button {
         font-size: 12px;
         padding: 6px;
+      }
+      .modal-content {
+        width: 95%;
       }
     }
 
@@ -443,6 +548,7 @@
             <th>Món ăn</th>
             <th>Trạng thái</th>
             <th>Ảnh</th>
+            <th>QR Code</th>
           </tr>
         </thead>
         <tbody id="orderTableBody"></tbody>
@@ -457,6 +563,15 @@
         <p><i class="fas fa-code"></i> Phát triển bởi sinh viên HCMUTE - 2025.</p>
         <p><i class="fas fa-heart"></i> Được xây dựng với đam mê và sáng tạo để mang lại trải nghiệm tốt nhất.</p>
       </div>
+    </div>
+  </div>
+
+  <div id="qrModal" class="modal">
+    <div class="modal-content">
+      <span class="close-button" onclick="closeQRModal()">&times;</span>
+      <h3>Mã QR RFID</h3>
+      <div id="qrcode"></div>
+      <button class="action-button" onclick="closeQRModal()">Đóng</button>
     </div>
   </div>
 
@@ -573,19 +688,33 @@
     }
 
     function showPayment(uid, date) {
-      const container = document.getElementById("paymentContainer");
-      container.innerHTML = `
-        <hr>
-        <h3>Thông tin chuyển khoản MoMo</h3>
-        <p>Ví MoMo: <b>0123456789</b><br>
-        Tên: <b>NGUYEN THANH PHAT</b><br>
-        Số tiền: <b>25,000 VND</b></p>
-        <p><b>➡ Quét mã QR để chuyển khoản:</b></p>
-        <img src="https://i.ibb.co/HTfvg9nk/QR.png" alt="QR Code">
+    const container = document.getElementById("paymentContainer");
+    container.innerHTML = `
+      <hr>
+      <h3>Thông tin chuyển khoản MoMo</h3>
+      <p>Ví MoMo: <b>0123456789</b><br>
+      Tên: <b>NGUYEN THANH PHAT</b><br>
+      Số tiền: <b>25,000 VND</b></p>
+      <p><b>➡ Quét mã QR để chuyển khoản:</b></p>
+      <img src="https://i.ibb.co/HTfvg9nk/QR.png" alt="QR Code">
+      <div class="payment-buttons">
         <button class="action-button" id="confirmPaymentBtn">Tôi đã chuyển khoản</button>
-      `;
-      document.getElementById("confirmPaymentBtn").addEventListener("click", () => confirmPayment(uid, date));
-    }
+        <button class="action-button download-qr" onclick="downloadQRCode()">📥 Tải QR Code</button>
+      </div>
+    `;
+    document.getElementById("confirmPaymentBtn").addEventListener("click", () => confirmPayment(uid, date));
+  }
+
+  function downloadQRCode() {
+    const qrImageUrl = "https://i.ibb.co/HTfvg9nk/QR.png";
+    const link = document.createElement("a");
+    link.href = qrImageUrl;
+    link.download = "QR_ThanhToan.png";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showMessage("orderMessage", "📥 Đã tải QR Code!", true);
+  }
 
     function confirmPayment(uid, date) {
       if (!currentOrder) {
@@ -623,11 +752,15 @@
           snapshot.forEach(child => {
             const order = child.val();
             const row = document.createElement("tr");
+            const qrCell = order.status === 'ordered' 
+              ? `<td><button class="qr-button" onclick="showQRCode('${child.key}')"><i class="fas fa-qrcode"></i></button></td>`
+              : `<td>-</td>`;
             row.innerHTML = `
               <td>${child.key}</td>
               <td>${order.food || '-'}</td>
               <td>${order.status === 'ordered' ? 'Đã thanh toán' : 'Đang xử lý'}</td>
               <td><img src="${order.url_food || 'https://via.placeholder.com/40'}" alt="food"></td>
+              ${qrCell}
             `;
             tbody.appendChild(row);
           });
@@ -638,6 +771,37 @@
         console.error("Error loading order history:", error);
         showMessage("historyMessage", "❌ Lỗi khi tải lịch sử đơn hàng!");
       });
+    }
+
+    function showQRCode(date) {
+      db.ref("users/" + uid + "/rfid").once("value").then(snapshot => {
+        const rfid = snapshot.val();
+        if (rfid) {
+          const modal = document.getElementById("qrModal");
+          const qrContainer = document.getElementById("qrcode");
+          qrContainer.innerHTML = ''; // Xóa QR cũ
+          new QRCode(qrContainer, {
+            text: rfid,
+            width: 160,
+            height: 160,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+          });
+          modal.style.display = "flex";
+        } else {
+          showMessage("historyMessage", "❌ Không tìm thấy RFID của người dùng!");
+        }
+      }).catch(error => {
+        console.error("Error loading RFID:", error);
+        showMessage("historyMessage", "❌ Lỗi khi tải RFID!");
+      });
+    }
+
+    function closeQRModal() {
+      const modal = document.getElementById("qrModal");
+      modal.style.display = "none";
+      document.getElementById("qrcode").innerHTML = '';
     }
 
     function logout() {
