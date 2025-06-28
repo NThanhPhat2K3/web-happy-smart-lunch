@@ -1,49 +1,11 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
   <title>Đặt cơm</title>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
@@ -283,7 +245,7 @@
       color: #4CAF50;
     }
 
-    #foodImage {
+    #foodImage, #changeFoodImage {
       max-width: 75%;
       height: auto;
       margin: 12px auto;
@@ -322,7 +284,7 @@
       font-weight: 600;
     }
 
-    #paymentContainer {
+    #paymentContainer, #subscriptionMessageContainer {
       margin-top: 12px;
       text-align: center;
     }
@@ -333,25 +295,26 @@
       border-radius: 12px;
     }
 
-    .order-table {
+    .order-table, .transaction-table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 12px;
     }
 
-    .order-table th, .order-table td {
+    .order-table th, .order-table td,
+    .transaction-table th, .transaction-table td {
       padding: 6px;
       text-align: left;
       border-bottom: 1px solid #eee;
       font-size: 12px;
     }
 
-    .order-table th {
+    .order-table th, .transaction-table th {
       background: #4CAF50;
       color: white;
     }
 
-    .order-table tr:hover {
+    .order-table tr:hover, .transaction-table tr:hover {
       background: #f5f5f5;
       cursor: pointer;
     }
@@ -376,14 +339,14 @@
       color: #388E3C;
     }
 
-    .about-section {
+    .about-section, .subscription-section {
       text-align: center;
       font-size: 13px;
       color: #555;
       line-height: 1.6;
     }
 
-    .about-section p {
+    .about-section p, .subscription-section p {
       margin-bottom: 10px;
       display: flex;
       align-items: center;
@@ -391,9 +354,41 @@
       gap: 8px;
     }
 
-    .about-section i {
+    .about-section i, .subscription-section i {
       color: #4CAF50;
       font-size: 16px;
+    }
+
+    .subscription-plan {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      margin: 20px 0;
+      gap: 15px;
+    }
+
+    .plan-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 15px;
+      width: 30%;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease;
+    }
+
+    .plan-card:hover {
+      transform: scale(1.05);
+    }
+
+    .plan-card h4 {
+      color: #222;
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    .plan-card p {
+      font-size: 12px;
+      color: #666;
     }
 
     .modal {
@@ -446,6 +441,28 @@
       color: #e53935;
     }
 
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #4CAF50;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .payment-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
     @media (max-width: 768px) {
       .sidebar {
         width: 160px;
@@ -457,7 +474,7 @@
         padding: 15px;
         max-width: 100%;
       }
-      #foodImage {
+      #foodImage, #changeFoodImage {
         max-width: 85%;
       }
       .sidebar h2 {
@@ -469,6 +486,16 @@
       }
       .modal-content {
         width: 95%;
+      }
+      .subscription-plan {
+        flex-direction: column;
+        gap: 15px;
+      }
+      .plan-card {
+        width: 100%;
+      }
+      .payment-buttons {
+        flex-direction: column;
       }
     }
 
@@ -486,7 +513,11 @@
   <div class="sidebar">
     <h2><i class="fas fa-utensils"></i> Đặt cơm</h2>
     <button class="nav-button active" data-section="place-order"><i class="fas fa-plus-circle"></i> Đặt món</button>
+    <button class="nav-button" data-section="change-order"><i class="fas fa-utensils"></i> Thay đổi món ăn</button>
     <button class="nav-button" data-section="order-history"><i class="fas fa-history"></i> Lịch sử đặt món</button>
+    <button class="nav-button" data-section="transaction-history"><i class="fas fa-money-check-alt"></i> Lịch sử chuyển khoản</button>
+    <button class="nav-button" data-section="subscription"><i class="fas fa-ticket-alt"></i> Gói đặt hàng</button>
+    <button class="nav-button" data-section="change-password"><i class="fas fa-key"></i> Đổi mật khẩu</button>
     <button class="nav-button" data-section="about"><i class="fas fa-info-circle"></i> Về chúng tôi</button>
     <button class="logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Đăng xuất</button>
   </div>
@@ -495,6 +526,7 @@
       <img id="userAvatar" src="" alt="Ảnh người dùng">
       <div id="userName">Chào, ...!</div>
       <h3>Đặt món ăn</h3>
+      <div class="message" id="subscriptionStatusMessage"></div>
       <div class="input-container">
         <input type="date" id="orderDate">
         <i class="fas fa-calendar-alt"></i>
@@ -535,9 +567,54 @@
         <i class="fas fa-utensils"></i>
       </div>
       <img id="foodImage" src="" alt="Ảnh món ăn">
-      <button class="action-button" onclick="placeOrder()">Đặt món và thanh toán</button>
+      <button class="action-button" onclick="placeOrder()">Đặt món</button>
       <div class="message" id="orderMessage"></div>
       <div id="paymentContainer"></div>
+    </div>
+    <div class="section" id="change-order">
+      <h3>Thay đổi món ăn</h3>
+      <div class="input-container">
+        <input type="date" id="changeOrderDate">
+        <i class="fas fa-calendar-alt"></i>
+      </div>
+      <div class="input-container">
+        <select id="changeFoodName" onchange="updateChangeFoodImage()">
+          <option value="Cơm gà">Cơm gà</option>
+          <option value="Cơm tấm">Cơm tấm</option>
+          <option value="Bún bò">Bún bò</option>
+          <option value="Bún riêu">Bún riêu</option>
+          <option value="Bún chả">Bún chả</option>
+          <option value="Bánh mì thịt">Bánh mì thịt</option>
+          <option value="Bánh cuốn">Bánh cuốn</option>
+          <option value="Mì xào">Mì xào</option>
+          <option value="Hủ tiếu">Hủ tiếu</option>
+          <option value="Bún xào">Bún xào</option>
+          <option value="Cháo gà">Cháo gà</option>
+          <option value="Phở bò">Phở bò</option>
+          <option value="Phở chay (chay)">Phở chay (chay)</option>
+          <option value="Cơm chay (chay)">Cơm chay (chay)</option>
+          <option value="Bún chay (chay)">Bún chay (chay)</option>
+          <option value="Bánh canh">Bánh canh</option>
+          <option value="Mì chay (chay)">Mì chay (chay)</option>
+          <option value="Cháo chay (chay)">Cháo chay (chay)</option>
+          <option value="Bánh mì chay (chay)">Bánh mì chay (chay)</option>
+          <option value="Xôi mặn">Xôi mặn</option>
+          <option value="Xôi chay (chay)">Xôi chay (chay)</option>
+          <option value="Bánh hỏi">Bánh hỏi</option>
+          <option value="Bánh bèo">Bánh bèo</option>
+          <option value="Bún thịt nướng">Bún thịt nướng</option>
+          <option value="Mì Quảng">Mì Quảng</option>
+          <option value="Cơm sườn">Cơm sườn</option>
+          <option value="Cơm chiên">Cơm chiên</option>
+          <option value="Mì trộn">Mì trộn</option>
+          <option value="Miến gà">Miến gà</option>
+          <option value="Miến chay (chay)">Miến chay (chay)</option>
+        </select>
+        <i class="fas fa-utensils"></i>
+      </div>
+      <img id="changeFoodImage" src="" alt="Ảnh món ăn">
+      <button class="action-button" onclick="changeOrder()">Thay đổi món</button>
+      <div class="message" id="changeOrderMessage"></div>
     </div>
     <div class="section" id="order-history">
       <h3>Lịch sử đặt món</h3>
@@ -555,6 +632,84 @@
       </table>
       <div class="message" id="historyMessage"></div>
     </div>
+    <div class="section" id="transaction-history">
+      <h3>Lịch sử chuyển khoản</h3>
+      <table class="transaction-table">
+        <thead>
+          <tr>
+            <th>Ngày</th>
+            <th>Loại</th>
+            <th>Số tiền</th>
+            <th>Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody id="transactionTableBody"></tbody>
+      </table>
+      <div class="message" id="transactionMessage"></div>
+    </div>
+    <div class="section" id="subscription">
+      <h3>Gói đặt hàng</h3>
+      <div class="subscription-section">
+        <p><i class="fas fa-ticket-alt"></i> Chọn gói đặt hàng phù hợp! Đặt món không cần thanh toán riêng lẻ.</p>
+        <div class="subscription-plan">
+          <div class="plan-card">
+            <h4>Gói Tuần</h4>
+            <p>6 ngày, <s>150,000 VND</s> 142,500 VND (giảm 5%)</p>
+            <p>Đặt 1 món mỗi ngày từ Thứ 2 đến Thứ 7</p>
+            <button class="action-button" onclick="subscribe('weekly')">Đăng ký gói tuần</button>
+          </div>
+          <div class="plan-card">
+            <h4>Gói Tháng</h4>
+            <p>26 ngày, <s>650,000 VND</s> 585,000 VND (giảm 10%)</p>
+            <p>Đặt 1 món mỗi ngày từ Thứ 2 đến Thứ 7</p>
+            <button class="action-button" onclick="subscribe('monthly')">Đăng ký gói tháng</button>
+          </div>
+          <div class="plan-card">
+            <h4>Gói 3 Tháng</h4>
+            <p>78 ngày, <s>1,950,000 VND</s> 1,657,500 VND (giảm 15%)</p>
+            <p>Đặt 1 món mỗi ngày từ Thứ 2 đến Thứ 7</p>
+            <button class="action-button" onclick="subscribe('3month')">Đăng ký gói 3 tháng</button>
+          </div>
+          <div class="plan-card">
+            <h4>Gói 6 Tháng</h4>
+            <p>156 ngày, <s>3,900,000 VND</s> 3,198,000 VND (giảm 18%)</p>
+            <p>Đặt 1 món mỗi ngày từ Thứ 2 đến Thứ 7</p>
+            <button class="action-button" onclick="subscribe('6month')">Đăng ký gói 6 tháng</button>
+          </div>
+          <div class="plan-card">
+            <h4>Gói 9 Tháng</h4>
+            <p>234 ngày, <s>5,850,000 VND</s> 4,680,000 VND (giảm 20%)</p>
+            <p>Đặt 1 món mỗi ngày từ Thứ 2 đến Thứ 7</p>
+            <button class="action-button" onclick="subscribe('9month')">Đăng ký gói 9 tháng</button>
+          </div>
+          <div class="plan-card">
+            <h4>Gói 12 Tháng</h4>
+            <p>312 ngày, <s>7,800,000 VND</s> 6,240,000 VND (giảm 20%)</p>
+            <p>Đặt 1 món mỗi ngày từ Thứ 2 đến Thứ 7</p>
+            <button class="action-button" onclick="subscribe('12month')">Đăng ký gói 12 tháng</button>
+          </div>
+        </div>
+        <div class="message" id="subscriptionMessage"></div>
+        <div id="subscriptionPaymentContainer"></div>
+      </div>
+    </div>
+    <div class="section" id="change-password">
+      <h3>Đổi mật khẩu</h3>
+      <div class="input-container">
+        <input type="password" id="currentPassword" placeholder="Mật khẩu hiện tại">
+        <i class="fas fa-lock"></i>
+      </div>
+      <div class="input-container">
+        <input type="password" id="newPassword" placeholder="Mật khẩu mới">
+        <i class="fas fa-lock"></i>
+      </div>
+      <div class="input-container">
+        <input type="password" id="confirmNewPassword" placeholder="Xác nhận mật khẩu mới">
+        <i class="fas fa-lock"></i>
+      </div>
+      <button class="action-button" onclick="changePassword()">Đổi mật khẩu</button>
+      <div class="message" id="passwordMessage"></div>
+    </div>
     <div class="section" id="about">
       <h3>Về chúng tôi</h3>
       <div class="about-section">
@@ -568,7 +723,7 @@
 
   <div id="qrModal" class="modal">
     <div class="modal-content">
-      <span class="close-button" onclick="closeQRModal()">&times;</span>
+      <span class="close-button" onclick="closeQRModal()">×</span>
       <h3>Mã QR RFID</h3>
       <div id="qrcode"></div>
       <button class="action-button" onclick="closeQRModal()">Đóng</button>
@@ -588,6 +743,7 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    const auth = firebase.auth();
 
     const uid = localStorage.getItem("uid");
     const defaultFoodImages = {
@@ -624,6 +780,7 @@
     };
 
     let currentOrder = null;
+    let currentSubscription = null;
 
     function showMessage(elementId, message, isSuccess = false) {
       const messageElement = document.getElementById(elementId);
@@ -640,6 +797,13 @@
     function updateFoodImage() {
       const food = document.getElementById("foodName").value;
       const img = document.getElementById("foodImage");
+      img.src = defaultFoodImages[food] || "";
+      img.style.display = img.src ? "block" : "none";
+    }
+
+    function updateChangeFoodImage() {
+      const food = document.getElementById("changeFoodName").value;
+      const img = document.getElementById("changeFoodImage");
       img.src = defaultFoodImages[food] || "";
       img.style.display = img.src ? "block" : "none";
     }
@@ -668,6 +832,149 @@
       });
     }
 
+    function isValidOrderDay(dateStr) {
+      const date = new Date(dateStr);
+      return date.getDay() !== 0; // Sunday is 0
+    }
+
+    function checkSubscriptionStatus(callback) {
+      db.ref("subscriptions/" + uid).once("value").then(snapshot => {
+        const subscription = snapshot.val();
+        const today = new Date().toISOString().split("T")[0];
+        let message = "";
+        let subscriptionValid = false;
+        let daysRemaining = 0;
+
+        if (subscription && subscription.status === "active" && subscription.daysRemaining > 0) {
+          daysRemaining = subscription.daysRemaining;
+          subscriptionValid = true;
+          const planName = subscription.plan === 'weekly' ? 'tuần' :
+                           subscription.plan === 'monthly' ? 'tháng' :
+                           subscription.plan === '3month' ? '3 tháng' :
+                           subscription.plan === '6month' ? '6 tháng' :
+                           subscription.plan === '9month' ? '9 tháng' : '12 tháng';
+          message = `🎉 Bạn còn ${daysRemaining} ngày trong gói ${planName} (bắt đầu từ ${subscription.startDate}).`;
+        } else {
+          message = "ℹ️ Bạn chưa có gói đăng ký nào hoặc gói đã hết ngày sử dụng.";
+        }
+
+        document.getElementById("subscriptionStatusMessage").textContent = message;
+        document.getElementById("subscriptionStatusMessage").style.display = "block";
+        callback(subscriptionValid, daysRemaining);
+      }).catch(error => {
+        console.error("Error checking subscription status:", error);
+        showMessage("orderMessage", "❌ Lỗi khi kiểm tra trạng thái gói đăng ký!");
+        callback(false, 0);
+      });
+    }
+
+    function changeOrder() {
+      const date = document.getElementById("changeOrderDate").value;
+      const newFood = document.getElementById("changeFoodName").value;
+
+      if (!date || !newFood) {
+        showMessage("changeOrderMessage", "⚠️ Vui lòng chọn ngày và món ăn mới!");
+        return;
+      }
+
+      if (!isValidOrderDay(date)) {
+        showMessage("changeOrderMessage", "⚠️ Không thể thay đổi món cho ngày Chủ Nhật!");
+        return;
+      }
+
+      const today = new Date();
+      const selectedDate = new Date(date);
+      const dayBefore = new Date(selectedDate);
+      dayBefore.setDate(selectedDate.getDate() - 1);
+      dayBefore.setHours(17, 0, 0, 0); // 17:00 day before
+
+      // Check if current time is before 17:00 the day before
+      if (today >= dayBefore) {
+        showMessage("changeOrderMessage", "❌ Không thể thay đổi món sau 17:00 ngày trước đó!");
+        return;
+      }
+
+      // Check if order exists and is in 'ordered' status
+      db.ref("orders/" + uid + "/" + date).once("value").then(snapshot => {
+        if (!snapshot.exists()) {
+          showMessage("changeOrderMessage", "⚠️ Không tìm thấy đơn hàng cho ngày này!");
+          return;
+        }
+
+        const order = snapshot.val();
+        if (order.status !== "ordered") {
+          showMessage("changeOrderMessage", "⚠️ Đơn hàng không ở trạng thái có thể thay đổi!");
+          return;
+        }
+
+        // Update order with new food
+        db.ref("orders/" + uid + "/" + date).update({
+          food: newFood,
+          url_food: defaultFoodImages[newFood] || ""
+        }).then(() => {
+          showMessage("changeOrderMessage", "✅ Thay đổi món ăn thành công!", true);
+          document.getElementById("changeOrderDate").value = "";
+          document.getElementById("changeFoodName").value = "Cơm gà";
+          updateChangeFoodImage();
+        }).catch(error => {
+          console.error("Error changing order:", error);
+          showMessage("changeOrderMessage", `❌ Lỗi khi thay đổi món: ${error.message}`);
+        });
+      }).catch(error => {
+        console.error("Error checking order:", error);
+        showMessage("changeOrderMessage", "❌ Lỗi khi kiểm tra đơn hàng!");
+      });
+    }
+
+    function changePassword() {
+      const currentPassword = document.getElementById("currentPassword").value;
+      const newPassword = document.getElementById("newPassword").value;
+      const confirmNewPassword = document.getElementById("confirmNewPassword").value;
+
+      if (!currentPassword || !newPassword || !confirmNewPassword) {
+        showMessage("passwordMessage", "⚠️ Vui lòng điền đầy đủ các trường!");
+        return;
+      }
+
+      if (newPassword !== confirmNewPassword) {
+        showMessage("passwordMessage", "⚠️ Mật khẩu mới và xác nhận mật khẩu không khớp!");
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        showMessage("passwordMessage", "⚠️ Mật khẩu mới phải có ít nhất 6 ký tự!");
+        return;
+      }
+
+      showMessage("passwordMessage", "⏳ Đang xử lý đổi mật khẩu...", true);
+
+      const user = auth.currentUser;
+      if (!user) {
+        showMessage("passwordMessage", "❌ Vui lòng đăng nhập lại!");
+        return;
+      }
+
+      const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
+      user.reauthenticateWithCredential(credential)
+        .then(() => {
+          return user.updatePassword(newPassword);
+        })
+        .then(() => {
+          showMessage("passwordMessage", "✅ Đổi mật khẩu thành công!", true);
+          document.getElementById("currentPassword").value = "";
+          document.getElementById("newPassword").value = "";
+          document.getElementById("confirmNewPassword").value = "";
+        })
+        .catch(error => {
+          console.error("Error changing password:", error);
+          if (error.code === "auth/wrong-password") {
+            showMessage("passwordMessage", "❌ Mật khẩu hiện tại không đúng!");
+          } else {
+            showMessage("passwordMessage", `❌ Lỗi: ${error.message || "Không thể đổi mật khẩu!"}`);
+          }
+        });
+    }
+
     function placeOrder() {
       const food = document.getElementById("foodName").value;
       const date = document.getElementById("orderDate").value || new Date().toISOString().split("T")[0];
@@ -677,44 +984,97 @@
         return;
       }
 
+      if (!isValidOrderDay(date)) {
+        showMessage("orderMessage", "⚠️ Không thể đặt món vào Chủ Nhật!");
+        return;
+      }
+
       currentOrder = {
         food: food,
         url_food: defaultFoodImages[food] || "",
         status: "pending"
       };
 
-      showPayment(uid, date);
-      showMessage("orderMessage", "📝 Vui lòng xác nhận thanh toán để hoàn tất!", true);
+      checkSubscriptionStatus((isValid, daysRemaining) => {
+        if (isValid && daysRemaining > 0) {
+          confirmOrderWithSubscription(uid, date, daysRemaining);
+        } else {
+          showPayment(uid, date);
+          showMessage("orderMessage", "📝 Vui lòng xác nhận thanh toán để hoàn tất!", true);
+        }
+      });
+    }
+
+    function confirmOrderWithSubscription(uid, date, daysRemaining) {
+      if (!currentOrder) {
+        showMessage("orderMessage", "❌ Lỗi: Không có thông tin đơn hàng!");
+        return;
+      }
+
+      showMessage("orderMessage", "⏳ Đang xử lý đơn hàng...", true);
+
+      db.ref("orders/" + uid + "/" + date).set({
+        food: currentOrder.food,
+        url_food: currentOrder.url_food,
+        status: "ordered"
+      }).then(() => {
+        return db.ref("subscriptions/" + uid).update({
+          daysRemaining: daysRemaining - 1
+        });
+      }).then(() => {
+        showMessage("orderMessage", "✅ Đặt món thành công!", true);
+        document.getElementById("paymentContainer").innerHTML = "";
+        document.getElementById("orderDate").value = "";
+        updateFoodImage();
+        currentOrder = null;
+        checkSubscriptionStatus(() => {});
+      }).catch(error => {
+        console.error("Error saving order:", error);
+        showMessage("orderMessage", `❌ Lỗi: ${error.message || "Không thể lưu đơn hàng!"}`);
+      });
     }
 
     function showPayment(uid, date) {
-    const container = document.getElementById("paymentContainer");
-    container.innerHTML = `
-      <hr>
-      <h3>Thông tin chuyển khoản MoMo</h3>
-      <p>Ví MoMo: <b>0123456789</b><br>
-      Tên: <b>NGUYEN THANH PHAT</b><br>
-      Số tiền: <b>25,000 VND</b></p>
-      <p><b>➡ Quét mã QR để chuyển khoản:</b></p>
-      <img src="https://i.ibb.co/HTfvg9nk/QR.png" alt="QR Code">
-      <div class="payment-buttons">
-        <button class="action-button" id="confirmPaymentBtn">Tôi đã chuyển khoản</button>
-        <button class="action-button download-qr" onclick="downloadQRCode()">📥 Tải QR Code</button>
-      </div>
-    `;
-    document.getElementById("confirmPaymentBtn").addEventListener("click", () => confirmPayment(uid, date));
-  }
+      const container = document.getElementById("paymentContainer");
+      container.innerHTML = `
+        <hr>
+        <h3>Thông tin chuyển khoản MoMo</h3>
+        <p>Ví MoMo: <b>0123456789</b><br>
+        Tên: <b>NGUYEN THANH PHAT</b><br>
+        Số tiền: <b>25,000 VND</b></p>
+        <p><b>➡ Quét mã QR để chuyển khoản:</b></p>
+        <img src="https://i.ibb.co/HTfvg9nk/QR.png" alt="QR Code">
+        <div class="payment-buttons">
+          <button class="action-button" id="confirmPaymentBtn">Tôi đã chuyển khoản</button>
+          <button class="action-button download-qr" onclick="downloadQRCode()">📥 Tải QR Code</button>
+        </div>
+      `;
+      document.getElementById("confirmPaymentBtn").addEventListener("click", () => {
+        const confirmBtn = document.getElementById("confirmPaymentBtn");
+        confirmBtn.innerHTML = '<span class="loading-spinner"></span>Đang kiểm tra...';
+        confirmBtn.disabled = true;
+        setTimeout(() => {
+          confirmPayment(uid, date);
+          confirmBtn.innerHTML = 'Bạn đã chuyển khoản thành công!';
+          confirmBtn.style.background = 'linear-gradient(90deg, #4CAF50, #66BB6A)';
+          setTimeout(() => {
+            confirmBtn.innerHTML = 'Tôi đã chuyển khoản';
+            confirmBtn.disabled = false;
+          }, 2000);
+        }, 10000);
+      });
+    }
 
-  function downloadQRCode() {
-    const qrImageUrl = "https://i.ibb.co/HTfvg9nk/QR.png";
-    const link = document.createElement("a");
-    link.href = qrImageUrl;
-    link.download = "QR_ThanhToan.png";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showMessage("orderMessage", "📥 Đã tải QR Code!", true);
-  }
+    function downloadQRCode() {
+      const qrImageUrl = "https://i.ibb.co/HTfvg9nk/QR.png";
+      const link = document.createElement("a");
+      link.href = qrImageUrl;
+      link.download = "QR_ThanhToan.png";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showMessage("orderMessage", "📥 Đã tải QR Code!", true);
+    }
 
     function confirmPayment(uid, date) {
       if (!currentOrder) {
@@ -722,14 +1082,12 @@
         return;
       }
 
-      showMessage("orderMessage", "⏳ Đang xử lý thanh toán...", true);
-
       db.ref("orders/" + uid + "/" + date).set({
         food: currentOrder.food,
         url_food: currentOrder.url_food,
         status: "inprocess"
       }).then(() => {
-        return db.ref("payments/" + uid + "/" + date).set({ paid: true });
+        return db.ref("payments/" + uid + "/" + date).set({ paid: true, amount: 25000, type: "single" });
       }).then(() => {
         return db.ref("orders/" + uid + "/" + date + "/status").set("ordered");
       }).then(() => {
@@ -744,32 +1102,217 @@
       });
     }
 
+    function subscribe(plan) {
+      const plans = {
+        weekly: { totalDays: 6, price: 142500, originalPrice: 150000, discount: 5 },
+        monthly: { totalDays: 26, price: 585000, originalPrice: 650000, discount: 10 },
+        '3month': { totalDays: 78, price: 1657500, originalPrice: 1950000, discount: 15 },
+        '6month': { totalDays: 156, price: 3198000, originalPrice: 3900000, discount: 18 },
+        '9month': { totalDays: 234, price: 4680000, originalPrice: 5850000, discount: 20 },
+        '12month': { totalDays: 312, price: 6240000, originalPrice: 7800000, discount: 20 }
+      };
+
+      if (!plans[plan]) {
+        showMessage("subscriptionMessage", "❌ Gói không hợp lệ!");
+        return;
+      }
+
+      currentSubscription = {
+        plan: plan,
+        startDate: new Date().toISOString().split("T")[0],
+        totalDays: plans[plan].totalDays,
+        price: plans[plan].price,
+        daysRemaining: plans[plan].totalDays
+      };
+
+      showSubscriptionPayment(uid, currentSubscription);
+      showMessage("subscriptionMessage", "📝 Vui lòng xác nhận thanh toán để đăng ký gói!", true);
+    }
+
+    function showSubscriptionPayment(uid, subscription) {
+      const container = document.getElementById("subscriptionPaymentContainer");
+      container.innerHTML = `
+        <hr>
+        <h3>Thông tin chuyển khoản MoMo</h3>
+        <p>Ví MoMo: <b>0123456789</b><br>
+        Tên: <b>NGUYEN THANH PHAT</b><br>
+        Số tiền: <b>${subscription.price.toLocaleString()} VND</b></p>
+        <p><b>➡ Quét mã QR để chuyển khoản:</b></p>
+        <img src="https://i.ibb.co/HTfvg9nk/QR.png" alt="QR Code">
+        <div class="payment-buttons">
+          <button class="action-button" id="confirmSubscriptionPaymentBtn">Tôi đã chuyển khoản</button>
+          <button class="action-button download-qr" onclick="downloadQRCode()">📥 Tải QR Code</button>
+        </div>
+      `;
+      document.getElementById("confirmSubscriptionPaymentBtn").addEventListener("click", () => {
+        const confirmBtn = document.getElementById("confirmSubscriptionPaymentBtn");
+        confirmBtn.innerHTML = '<span class="loading-spinner"></span>Đang kiểm tra...';
+        confirmBtn.disabled = true;
+        setTimeout(() => {
+          confirmSubscriptionPayment(uid);
+          confirmBtn.innerHTML = 'Bạn đã chuyển khoản thành công!';
+          confirmBtn.style.background = 'linear-gradient(90deg, #4CAF50, #66BB6A)';
+          setTimeout(() => {
+            confirmBtn.innerHTML = 'Tôi đã chuyển khoản';
+            confirmBtn.disabled = false;
+          }, 2000);
+        }, 10000);
+      });
+    }
+
+    function confirmSubscriptionPayment(uid) {
+      if (!currentSubscription) {
+        showMessage("subscriptionMessage", "❌ Lỗi: Không có thông tin gói đăng ký!");
+        return;
+      }
+
+      const subscriptionRef = db.ref("subscriptions/" + uid);
+      const subscriptionData = {
+        plan: currentSubscription.plan,
+        startDate: currentSubscription.startDate,
+        totalDays: currentSubscription.totalDays,
+        daysRemaining: currentSubscription.daysRemaining,
+        status: "active"
+      };
+      subscriptionRef.set(subscriptionData).then(() => {
+        return db.ref("subscriptionPayments/" + uid + "/" + currentSubscription.startDate).set({
+          paid: true,
+          amount: currentSubscription.price,
+          type: "subscription",
+          plan: currentSubscription.plan
+        });
+      }).then(() => {
+        showMessage("subscriptionMessage", `💵 Đăng ký gói ${currentSubscription.plan === 'weekly' ? 'tuần' : currentSubscription.plan === 'monthly' ? 'tháng' : currentSubscription.plan === '3month' ? '3 tháng' : currentSubscription.plan === '6month' ? '6 tháng' : currentSubscription.plan === '9month' ? '9 tháng' : '12 tháng'} thành công!`, true);
+        document.getElementById("subscriptionPaymentContainer").innerHTML = "";
+        currentSubscription = null;
+        checkSubscriptionStatus(() => {});
+      }).catch(error => {
+        console.error("Error saving subscription:", error);
+        showMessage("subscriptionMessage", `❌ Lỗi: ${error.message || "Không thể đăng ký gói!"}`);
+      });
+    }
+
     function loadOrderHistory() {
+      const today = new Date().toISOString().split("T")[0];
+
       db.ref("orders/" + uid).once("value").then(snapshot => {
         const tbody = document.getElementById("orderTableBody");
         tbody.innerHTML = '';
+        let hasOrders = false;
+
         if (snapshot.exists()) {
           snapshot.forEach(child => {
+            const orderDate = child.key;
             const order = child.val();
-            const row = document.createElement("tr");
-            const qrCell = order.status === 'ordered' 
-              ? `<td><button class="qr-button" onclick="showQRCode('${child.key}')"><i class="fas fa-qrcode"></i></button></td>`
-              : `<td>-</td>`;
-            row.innerHTML = `
-              <td>${child.key}</td>
-              <td>${order.food || '-'}</td>
-              <td>${order.status === 'ordered' ? 'Đã thanh toán' : 'Đang xử lý'}</td>
-              <td><img src="${order.url_food || 'https://via.placeholder.com/40'}" alt="food"></td>
-              ${qrCell}
-            `;
-            tbody.appendChild(row);
+
+            if (orderDate < today) {
+              db.ref("orders/" + uid + "/" + orderDate).remove()
+                .catch(error => {
+                  console.error("Error removing past order:", error);
+                  showMessage("historyMessage", "❌ Lỗi khi xóa đơn hàng cũ!");
+                });
+            } else if (orderDate >= today && order.status === "ordered") {
+              hasOrders = true;
+              const row = document.createElement("tr");
+              const qrCell = `<td><button class="qr-button" onclick="showQRCode('${orderDate}')"><i class="fas fa-qrcode"></i></button></td>`;
+              row.innerHTML = `
+                <td>${orderDate}</td>
+                <td>${order.food || '-'}</td>
+                <td>Đã thanh toán</td>
+                <td><img src="${order.url_food || 'https://via.placeholder.com/40'}" alt="food"></td>
+                ${qrCell}
+              `;
+              tbody.appendChild(row);
+            }
           });
-        } else {
-          showMessage("historyMessage", "⚠️ Không có đơn hàng nào!");
+        }
+
+        if (!hasOrders) {
+          showMessage("historyMessage", "⚠️ Không có đơn hàng nào từ hôm nay trở đi!");
         }
       }).catch(error => {
         console.error("Error loading order history:", error);
         showMessage("historyMessage", "❌ Lỗi khi tải lịch sử đơn hàng!");
+      });
+    }
+
+    function loadTransactionHistory() {
+      const tbody = document.getElementById("transactionTableBody");
+      tbody.innerHTML = '';
+      let hasTransactions = false;
+
+      // Load single order payments
+      db.ref("payments/" + uid).once("value").then(snapshot => {
+        if (snapshot.exists()) {
+          snapshot.forEach(child => {
+            const paymentDate = child.key;
+            const payment = child.val();
+            if (payment.paid && payment.type === "single") {
+              // Fetch corresponding order to get food details
+              db.ref("orders/" + uid + "/" + paymentDate).once("value").then(orderSnapshot => {
+                const order = orderSnapshot.val();
+                const foodName = order && order.food ? order.food : "Không xác định";
+                hasTransactions = true;
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                  <td>${paymentDate}</td>
+                  <td>Đơn lẻ: ${foodName}</td>
+                  <td>${payment.amount.toLocaleString()} VND</td>
+                  <td>Đã thanh toán</td>
+                `;
+                tbody.appendChild(row);
+              }).catch(error => {
+                console.error("Error loading order for payment:", error);
+                // Display payment even if order data is missing
+                hasTransactions = true;
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                  <td>${paymentDate}</td>
+                  <td>Đơn lẻ: Không xác định</td>
+                  <td>${payment.amount.toLocaleString()} VND</td>
+                  <td>Đã thanh toán</td>
+                `;
+                tbody.appendChild(row);
+              });
+            }
+          });
+        }
+
+        // Load subscription payments
+        db.ref("subscriptionPayments/" + uid).once("value").then(subSnapshot => {
+          if (subSnapshot.exists()) {
+            subSnapshot.forEach(child => {
+              const paymentDate = child.key;
+              const payment = child.val();
+              if (payment.paid && payment.type === "subscription") {
+                hasTransactions = true;
+                const planName = payment.plan === 'weekly' ? 'tuần' :
+                                 payment.plan === 'monthly' ? 'tháng' :
+                                 payment.plan === '3month' ? '3 tháng' :
+                                 payment.plan === '6month' ? '6 tháng' :
+                                 payment.plan === '9month' ? '9 tháng' : '12 tháng';
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                  <td>${paymentDate}</td>
+                  <td>Gói ${planName}</td>
+                  <td>${payment.amount.toLocaleString()} VND</td>
+                  <td>Đã thanh toán</td>
+                `;
+                tbody.appendChild(row);
+              }
+            });
+          }
+
+          if (!hasTransactions) {
+            showMessage("transactionMessage", "⚠️ Không có lịch sử chuyển khoản!");
+          }
+        }).catch(error => {
+          console.error("Error loading subscription payments:", error);
+          showMessage("transactionMessage", "❌ Lỗi khi tải lịch sử chuyển khoản!");
+        });
+      }).catch(error => {
+        console.error("Error loading single order payments:", error);
+        showMessage("transactionMessage", "❌ Lỗi khi tải lịch sử chuyển khoản!");
       });
     }
 
@@ -779,7 +1322,7 @@
         if (rfid) {
           const modal = document.getElementById("qrModal");
           const qrContainer = document.getElementById("qrcode");
-          qrContainer.innerHTML = ''; // Xóa QR cũ
+          qrContainer.innerHTML = '';
           new QRCode(qrContainer, {
             text: rfid,
             width: 160,
@@ -805,8 +1348,13 @@
     }
 
     function logout() {
-      localStorage.clear();
-      window.location.href = "index.html";
+      auth.signOut().then(() => {
+        localStorage.clear();
+        window.location.href = "index.html";
+      }).catch(error => {
+        console.error("Error signing out:", error);
+        showMessage("orderMessage", "❌ Lỗi khi đăng xuất!");
+      });
     }
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -820,6 +1368,9 @@
           sections.forEach(section => section.classList.remove("active"));
           document.getElementById(button.dataset.section).classList.add("active");
           if (button.dataset.section === "order-history") loadOrderHistory();
+          if (button.dataset.section === "transaction-history") loadTransactionHistory();
+          if (button.dataset.section === "place-order") checkSubscriptionStatus(() => {});
+          if (button.dataset.section === "change-order") updateChangeFoodImage();
         });
       });
 
@@ -827,12 +1378,16 @@
       inputs.forEach(input => {
         input.addEventListener("keypress", (e) => {
           if (e.key === "Enter" && input.closest("#place-order")) placeOrder();
+          if (e.key === "Enter" && input.closest("#change-order")) changeOrder();
+          if (e.key === "Enter" && input.closest("#change-password")) changePassword();
         });
       });
 
       updateFoodImage();
+      updateChangeFoodImage();
       loadUserAvatar();
       loadUserName();
+      checkSubscriptionStatus(() => {});
     });
   </script>
 </body>

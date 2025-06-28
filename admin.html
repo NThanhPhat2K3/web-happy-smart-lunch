@@ -5,6 +5,7 @@
   <title>Quản trị viên</title>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <style>
@@ -139,6 +140,8 @@
     .input-container {
       position: relative;
       margin-bottom: 20px;
+      display: flex;
+      align-items: center;
     }
 
     .input-container i {
@@ -169,6 +172,31 @@
 
     input:focus + i, select:focus + i {
       color: #4CAF50;
+    }
+
+    #regRfid {
+      padding-right: 50px; /* Adjusted for smaller button */
+    }
+
+    .generate-button {
+      position: absolute;
+      right: 5px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: linear-gradient(90deg, #2196F3, #42A5F5);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 10px; /* Reduced padding for text-only button */
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .generate-button:hover {
+      background: linear-gradient(90deg, #1976D2, #2196F3);
+      box-shadow: 0 2px 8px rgba(33, 150, 243, 0.4);
+      transform: translateY(-50%) scale(1.05);
     }
 
     .action-button {
@@ -285,6 +313,20 @@
       .section {
         padding: 20px;
       }
+      .input-container {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      #regRfid {
+        padding-right: 12px; /* Reset padding on mobile */
+      }
+      .generate-button {
+        position: static;
+        transform: none;
+        width: fit-content;
+        margin: 10px auto 0;
+        padding: 8px 12px; /* Slightly wider for mobile */
+      }
     }
   </style>
 </head>
@@ -292,8 +334,10 @@
   <div class="sidebar">
     <h2><i class="fas fa-user-shield"></i> Quản trị viên</h2>
     <button class="nav-button active" data-section="add-user"><i class="fas fa-user-plus"></i> Thêm người dùng</button>
+    <button class="nav-button" data-section="update-user"><i class="fas fa-user-edit"></i> Cập nhật người dùng</button>
     <button class="nav-button" data-section="delete-user"><i class="fas fa-user-times"></i> Xóa người dùng</button>
     <button class="nav-button" data-section="list-user"><i class="fas fa-users"></i> Danh sách người dùng</button>
+    <button class="nav-button" data-section="change-password"><i class="fas fa-key"></i> Đổi mật khẩu</button>
     <button class="nav-button" data-section="about"><i class="fas fa-info-circle"></i> Về chúng tôi</button>
     <button class="logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Đăng xuất</button>
   </div>
@@ -309,10 +353,6 @@
         <i class="fas fa-user"></i>
       </div>
       <div class="input-container">
-        <input type="text" id="regRfid" placeholder="RFID">
-        <i class="fas fa-tag"></i>
-      </div>
-      <div class="input-container">
         <input type="text" id="regUrlImage" placeholder="URL ảnh người dùng">
         <i class="fas fa-image"></i>
       </div>
@@ -323,12 +363,31 @@
       <div class="input-container">
         <select id="regRole">
           <option value="user">User</option>
+          <option value="vendor">Vendor</option>
           <option value="admin">Admin</option>
         </select>
         <i class="fas fa-user-cog"></i>
       </div>
+      <div class="input-container">
+        <input type="text" id="regRfid" placeholder="RFID (tùy chọn)">
+        <i class="fas fa-tag"></i>
+        <button class="generate-button" onclick="generateCode()">Tạo mã nhanh</button>
+      </div>
       <button class="action-button" onclick="registerUser()">📝 Đăng ký người dùng</button>
       <div class="message" id="addMessage"></div>
+    </div>
+    <div class="section" id="update-user">
+      <h3>Cập nhật RFID người dùng</h3>
+      <div class="input-container">
+        <input type="text" id="updateUid" placeholder="Nhập UID cần cập nhật">
+        <i class="fas fa-id-card"></i>
+      </div>
+      <div class="input-container">
+        <input type="text" id="updateRfid" placeholder="RFID mới">
+        <i class="fas fa-tag"></i>
+      </div>
+      <button class="action-button" onclick="updateUserRfid()">🔄 Cập nhật RFID</button>
+      <div class="message" id="updateMessage"></div>
     </div>
     <div class="section" id="delete-user">
       <h3>Xóa người dùng</h3>
@@ -347,6 +406,7 @@
             <th>UID</th>
             <th>Tên</th>
             <th>RFID</th>
+            <th>QR Code</th>
             <th>Vai trò</th>
             <th>Ảnh</th>
           </tr>
@@ -354,6 +414,23 @@
         <tbody id="userTableBody"></tbody>
       </table>
       <div class="message" id="listMessage"></div>
+    </div>
+    <div class="section" id="change-password">
+      <h3>Đổi mật khẩu</h3>
+      <div class="input-container">
+        <input type="password" id="currentPassword" placeholder="Mật khẩu hiện tại">
+        <i class="fas fa-lock"></i>
+      </div>
+      <div class="input-container">
+        <input type="password" id="newPassword" placeholder="Mật khẩu mới">
+        <i class="fas fa-lock"></i>
+      </div>
+      <div class="input-container">
+        <input type="password" id="confirmNewPassword" placeholder="Xác nhận mật khẩu mới">
+        <i class="fas fa-lock"></i>
+      </div>
+      <button class="action-button" onclick="changePassword()">🔑 Đổi mật khẩu</button>
+      <div class="message" id="passwordMessage"></div>
     </div>
     <div class="section" id="about">
       <h3>Về chúng tôi</h3>
@@ -379,6 +456,7 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    const auth = firebase.auth();
 
     function showMessage(elementId, message, isSuccess = false) {
       const messageElement = document.getElementById(elementId);
@@ -388,30 +466,149 @@
       setTimeout(() => messageElement.style.display = 'none', 3000);
     }
 
+    function generateCode() {
+      // Generate a 10-digit numeric code
+      const generateUniqueCode = () => {
+        const code = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+        return code.padStart(10, '0'); // Ensure 10 digits with leading zeros
+      };
+
+      // Check if code is unique
+      db.ref("users").once("value").then(snapshot => {
+        let code = generateUniqueCode();
+        let attempts = 0;
+        const maxAttempts = 10;
+
+        while (snapshot.exists() && attempts < maxAttempts) {
+          let isUnique = true;
+          snapshot.forEach(child => {
+            const user = child.val();
+            if (user.rfid === code || user.qr_code === code) {
+              isUnique = false;
+            }
+          });
+          if (isUnique) {
+            document.getElementById("regRfid").value = code;
+            showMessage("addMessage", `✅ Đã tạo mã: ${code}`, true);
+            return;
+          }
+          code = generateUniqueCode();
+          attempts++;
+        }
+        showMessage("addMessage", "❌ Không thể tạo mã duy nhất sau nhiều lần thử. Vui lòng thử lại.");
+      }).catch(error => {
+        console.error("Error checking codes:", error);
+        showMessage("addMessage", "❌ Lỗi khi tạo mã: " + error.message);
+      });
+    }
+
     function registerUser() {
       const uid = document.getElementById("regUid").value.trim();
-      const ten = document.getElementById("regTen").value;
-      const rfid = document.getElementById("regRfid").value;
-      const urlImage = document.getElementById("regUrlImage").value;
+      const ten = document.getElementById("regTen").value.trim();
+      let rfid = document.getElementById("regRfid").value.trim();
+      const urlImage = document.getElementById("regUrlImage").value.trim();
       const role = document.getElementById("regRole").value;
       const password = document.getElementById("regPassword").value;
 
-      if (!uid || !ten || !rfid || !password) {
-        showMessage("addMessage", "⚠️ Vui lòng điền đầy đủ thông tin bắt buộc (bao gồm mật khẩu)");
+      if (!uid || !ten || !password) {
+        showMessage("addMessage", "⚠️ Vui lòng điền UID, tên và mật khẩu!");
         return;
       }
 
-      db.ref("users/" + uid).set({
-        ten,
-        rfid,
-        url_image: urlImage,
-        role,
-        password
-      }).then(() => {
-        showMessage("addMessage", "✅ Đăng ký thành công!", true);
-        document.querySelectorAll('#add-user input, #add-user select').forEach(el => el.value = '');
-      }).catch(() => {
-        showMessage("addMessage", "❌ Lỗi khi đăng ký!");
+      if (!['user', 'vendor', 'admin'].includes(role)) {
+        showMessage("addMessage", "⚠️ Vai trò không hợp lệ!");
+        return;
+      }
+
+      // If RFID is empty, generate a 10-digit code
+      if (!rfid) {
+        rfid = Math.floor(1000000000 + Math.random() * 9000000000).toString().padStart(10, '0');
+      }
+
+      // Check if UID or RFID already exists
+      db.ref("users").once("value").then(snapshot => {
+        if (snapshot.child(uid).exists()) {
+          showMessage("addMessage", "⚠️ UID đã tồn tại!");
+          return;
+        }
+        let rfidExists = false;
+        snapshot.forEach(child => {
+          const user = child.val();
+          if (user.rfid === rfid || user.qr_code === rfid) {
+            rfidExists = true;
+          }
+        });
+        if (rfidExists) {
+          showMessage("addMessage", "⚠️ Mã RFID hoặc QR code đã được sử dụng!");
+          return;
+        }
+
+        // Register user with rfid and qr_code
+        console.log("Writing user data for", uid);
+        db.ref("users/" + uid).set({
+          ten,
+          rfid,
+          qr_code: rfid, // Same as rfid
+          url_image: urlImage,
+          role,
+          password
+        }).then(() => {
+          showMessage("addMessage", "✅ Đăng ký thành công!", true);
+          document.querySelectorAll('#add-user input, #add-user select').forEach(el => el.value = '');
+        }).catch(error => {
+          console.error("Error registering user:", error);
+          showMessage("addMessage", "❌ Lỗi khi đăng ký: " + error.message);
+        });
+      }).catch(error => {
+        console.error("Error checking existing users:", error);
+        showMessage("addMessage", "❌ Lỗi khi kiểm tra dữ liệu: " + error.message);
+      });
+    }
+
+    function updateUserRfid() {
+      const uid = document.getElementById("updateUid").value.trim();
+      const newRfid = document.getElementById("updateRfid").value.trim();
+
+      if (!uid || !newRfid) {
+        showMessage("updateMessage", "⚠️ Vui lòng nhập UID và RFID mới!");
+        return;
+      }
+
+      // Check if UID exists and RFID is unique
+      db.ref("users").once("value").then(snapshot => {
+        if (!snapshot.child(uid).exists()) {
+          showMessage("updateMessage", "⚠️ UID không tồn tại!");
+          return;
+        }
+
+        let rfidExists = false;
+        snapshot.forEach(child => {
+          const user = child.val();
+          if ((user.rfid === newRfid || user.qr_code === newRfid) && child.key !== uid) {
+            rfidExists = true;
+          }
+        });
+        if (rfidExists) {
+          showMessage("updateMessage", "⚠️ RFID mới đã được sử dụng!");
+          return;
+        }
+
+        // Update only rfid and qr_code
+        console.log("Updating RFID for", uid, "to", newRfid);
+        db.ref("users/" + uid).update({
+          rfid: newRfid,
+          qr_code: newRfid
+        }).then(() => {
+          showMessage("updateMessage", "✅ Cập nhật RFID thành công!", true);
+          document.getElementById("updateUid").value = '';
+          document.getElementById("updateRfid").value = '';
+        }).catch(error => {
+          console.error("Error updating RFID:", error);
+          showMessage("updateMessage", "❌ Lỗi khi cập nhật RFID: " + error.message);
+        });
+      }).catch(error => {
+        console.error("Error checking users:", error);
+        showMessage("updateMessage", "❌ Lỗi khi kiểm tra dữ liệu: " + error.message);
       });
     }
 
@@ -422,12 +619,68 @@
         return;
       }
 
-      db.ref("users/" + uid).remove().then(() => {
+      db.ref("users/" + uid).once("value").then(snapshot => {
+        if (!snapshot.exists()) {
+          showMessage("deleteMessage", "⚠️ UID không tồn tại!");
+          return;
+        }
+        return db.ref("users/" + uid).remove();
+      }).then(() => {
         showMessage("deleteMessage", "🗑️ Đã xóa người dùng", true);
         document.getElementById("deleteUid").value = '';
-      }).catch(() => {
-        showMessage("deleteMessage", "❌ Lỗi khi xóa!");
+      }).catch(error => {
+        console.error("Error deleting user:", error);
+        showMessage("deleteMessage", "❌ Lỗi khi xóa: " + error.message);
       });
+    }
+
+    function changePassword() {
+      const currentPassword = document.getElementById("currentPassword").value;
+      const newPassword = document.getElementById("newPassword").value;
+      const confirmNewPassword = document.getElementById("confirmNewPassword").value;
+
+      if (!currentPassword || !newPassword || !confirmNewPassword) {
+        showMessage("passwordMessage", "⚠️ Vui lòng điền đầy đủ các trường!");
+        return;
+      }
+
+      if (newPassword !== confirmNewPassword) {
+        showMessage("passwordMessage", "⚠️ Mật khẩu mới và xác nhận mật khẩu không khớp!");
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        showMessage("passwordMessage", "⚠️ Mật khẩu mới phải có ít nhất 6 ký tự!");
+        return;
+      }
+
+      showMessage("passwordMessage", "⏳ Đang xử lý đổi mật khẩu...", true);
+
+      const user = auth.currentUser;
+      if (!user) {
+        showMessage("passwordMessage", "❌ Vui lòng đăng nhập lại!");
+        return;
+      }
+
+      const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
+      user.reauthenticateWithCredential(credential)
+        .then(() => {
+          return user.updatePassword(newPassword);
+        })
+        .then(() => {
+          showMessage("passwordMessage", "✅ Đổi mật khẩu thành công!", true);
+          document.getElementById("currentPassword").value = "";
+          document.getElementById("newPassword").value = "";
+          document.getElementById("confirmNewPassword").value = "";
+        })
+        .catch(error => {
+          console.error("Error changing password:", error);
+          if (error.code === "auth/wrong-password") {
+            showMessage("passwordMessage", "❌ Mật khẩu hiện tại không đúng!");
+          } else {
+            showMessage("passwordMessage", `❌ Lỗi: ${error.message || "Không thể đổi mật khẩu!"}`);
+          }
+        });
     }
 
     function loadUsers() {
@@ -437,12 +690,14 @@
         if (snapshot.exists()) {
           snapshot.forEach(child => {
             const user = child.val();
+            const roleDisplay = user.role === 'vendor' ? 'Vendor' : user.role === 'admin' ? 'Admin' : 'User';
             const row = document.createElement("tr");
             row.innerHTML = `
               <td>${child.key}</td>
               <td>${user.ten || '-'}</td>
               <td>${user.rfid || '-'}</td>
-              <td>${user.role || 'user'}</td>
+              <td>${user.qr_code || '-'}</td>
+              <td>${roleDisplay}</td>
               <td><img src="${user.url_image || 'https://via.placeholder.com/40'}" alt="avatar"></td>
             `;
             tbody.appendChild(row);
@@ -450,14 +705,20 @@
         } else {
           showMessage("listMessage", "⚠️ Không có người dùng nào!");
         }
-      }).catch(() => {
-        showMessage("listMessage", "❌ Lỗi khi tải danh sách!");
+      }).catch(error => {
+        console.error("Error loading users:", error);
+        showMessage("listMessage", "❌ Lỗi khi tải danh sách: " + error.message);
       });
     }
 
     function logout() {
-      localStorage.clear();
-      window.location.href = "index.html";
+      auth.signOut().then(() => {
+        localStorage.clear();
+        window.location.href = "index.html";
+      }).catch(error => {
+        console.error("Error signing out:", error);
+        showMessage("addMessage", "❌ Lỗi khi đăng xuất: " + error.message);
+      });
     }
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -479,7 +740,9 @@
         input.addEventListener("keypress", (e) => {
           if (e.key === "Enter") {
             if (input.closest("#add-user")) registerUser();
+            if (input.closest("#update-user")) updateUserRfid();
             if (input.closest("#delete-user")) deleteUser();
+            if (input.closest("#change-password")) changePassword();
           }
         });
       });
