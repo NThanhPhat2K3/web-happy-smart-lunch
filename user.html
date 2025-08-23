@@ -260,7 +260,7 @@
       to { opacity: 1; transform: scale(1); }
     }
 
-    #userAvatar {
+    #userAvatar, #profileAvatar {
       width: 70px;
       height: 70px;
       border-radius: 50%;
@@ -339,14 +339,14 @@
       color: #388E3C;
     }
 
-    .about-section, .subscription-section {
+    .about-section, .subscription-section, .profile-section {
       text-align: center;
       font-size: 13px;
       color: #555;
       line-height: 1.6;
     }
 
-    .about-section p, .subscription-section p {
+    .about-section p, .subscription-section p, .profile-section p {
       margin-bottom: 10px;
       display: flex;
       align-items: center;
@@ -354,7 +354,7 @@
       gap: 8px;
     }
 
-    .about-section i, .subscription-section i {
+    .about-section i, .subscription-section i, .profile-section i {
       color: #4CAF50;
       font-size: 16px;
     }
@@ -516,6 +516,7 @@
     <button class="nav-button" data-section="change-order"><i class="fas fa-utensils"></i> Thay đổi món ăn</button>
     <button class="nav-button" data-section="order-history"><i class="fas fa-history"></i> Lịch sử đặt món</button>
     <button class="nav-button" data-section="transaction-history"><i class="fas fa-money-check-alt"></i> Lịch sử chuyển khoản</button>
+    <button class="nav-button" data-section="profile"><i class="fas fa-user"></i> Thông tin người dùng</button>
     <button class="nav-button" data-section="subscription"><i class="fas fa-ticket-alt"></i> Gói đặt hàng</button>
     <button class="nav-button" data-section="change-password"><i class="fas fa-key"></i> Đổi mật khẩu</button>
     <button class="nav-button" data-section="about"><i class="fas fa-info-circle"></i> Về chúng tôi</button>
@@ -646,6 +647,22 @@
         <tbody id="transactionTableBody"></tbody>
       </table>
       <div class="message" id="transactionMessage"></div>
+    </div>
+    <div class="section" id="profile">
+      <h3>Thông tin người dùng</h3>
+      <div class="profile-section">
+        <img id="profileAvatar" src="" alt="Ảnh người dùng">
+        <p><i class="fas fa-id-card"></i> UID: <span id="profileUid"></span></p>
+        <p><i class="fas fa-user"></i> Tên: <span id="profileName"></span></p>
+        <p><i class="fas fa-tag"></i> RFID: <span id="profileRfid"></span></p>
+        <p><i class="fas fa-user-cog"></i> Vai trò: <span id="profileRole"></span></p>
+        <div class="input-container">
+          <input type="text" id="profileImageUrl" placeholder="Nhập link ảnh">
+          <i class="fas fa-image"></i>
+        </div>
+        <button class="action-button" onclick="updateUserImageFromLink()">Cập nhật ảnh</button>
+        <div class="message" id="profileMessage"></div>
+      </div>
     </div>
     <div class="section" id="subscription">
       <h3>Gói đặt hàng</h3>
@@ -810,11 +827,14 @@
 
     function loadUserAvatar() {
       db.ref("users/" + uid + "/url_image").once("value").then(snapshot => {
-        const url = snapshot.val();
-        if (url) {
-          const avatar = document.getElementById("userAvatar");
-          avatar.src = url;
-          avatar.style.display = "block";
+        const url = snapshot.val() || "https://i.ibb.co/Lzqr982j/unknow-image.jpg";
+        const avatar = document.getElementById("userAvatar");
+        const profileAvatar = document.getElementById("profileAvatar");
+        avatar.src = url;
+        avatar.style.display = "block";
+        if (profileAvatar) {
+          profileAvatar.src = url;
+          profileAvatar.style.display = "block";
         }
       }).catch(error => {
         console.error("Error loading user avatar:", error);
@@ -826,10 +846,67 @@
       db.ref("users/" + uid + "/ten").once("value").then(snapshot => {
         const name = snapshot.val() || "Khách";
         document.getElementById("userName").textContent = `Chào, ${name}!`;
+        if (document.getElementById("profileName")) {
+          document.getElementById("profileName").textContent = name;
+        }
       }).catch(error => {
         console.error("Error loading user name:", error);
         showMessage("orderMessage", "❌ Lỗi khi tải tên người dùng!");
       });
+    }
+
+    function loadUserProfile() {
+      db.ref("users/" + uid).once("value").then(snapshot => {
+        if (snapshot.exists()) {
+          const user = snapshot.val();
+          document.getElementById("profileUid").textContent = uid || "-";
+          document.getElementById("profileName").textContent = user.ten || "-";
+          document.getElementById("profileRfid").textContent = user.rfid || "-";
+          document.getElementById("profileRole").textContent = user.role === 'vendor' ? 'Vendor' : user.role === 'admin' ? 'Admin' : 'User';
+        } else {
+          showMessage("profileMessage", "❌ Không tìm thấy thông tin người dùng!");
+        }
+      }).catch(error => {
+        console.error("Error loading user profile:", error);
+        showMessage("profileMessage", "❌ Lỗi khi tải thông tin người dùng!");
+      });
+    }
+
+    function updateUserImageFromLink() {
+      const imageUrl = document.getElementById("profileImageUrl").value.trim();
+
+      if (!imageUrl) {
+        showMessage("profileMessage", "⚠️ Vui lòng nhập link ảnh!");
+        return;
+      }
+
+      // Basic URL validation
+      const urlPattern = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|bmp|webp))$/i;
+      if (!urlPattern.test(imageUrl)) {
+        showMessage("profileMessage", "⚠️ Link ảnh không hợp lệ! Vui lòng nhập URL của file hình ảnh (png, jpg, jpeg, gif, bmp, webp).");
+        return;
+      }
+
+      showMessage("profileMessage", "⏳ Đang cập nhật ảnh...", true);
+
+      // Test if the image URL is accessible
+      const img = new Image();
+      img.onload = () => {
+        db.ref("users/" + uid + "/url_image").set(imageUrl)
+          .then(() => {
+            showMessage("profileMessage", "✅ Cập nhật ảnh thành công!", true);
+            document.getElementById("profileImageUrl").value = "";
+            loadUserAvatar(); // Refresh avatars
+          })
+          .catch(error => {
+            console.error("Error updating image URL in Firebase:", error);
+            showMessage("profileMessage", "❌ Lỗi khi lưu URL ảnh!");
+          });
+      };
+      img.onerror = () => {
+        showMessage("profileMessage", "❌ Link ảnh không hợp lệ hoặc không thể truy cập!");
+      };
+      img.src = imageUrl;
     }
 
     function isValidOrderDay(dateStr) {
@@ -888,13 +965,11 @@
       dayBefore.setDate(selectedDate.getDate() - 1);
       dayBefore.setHours(17, 0, 0, 0); // 17:00 day before
 
-      // Check if current time is before 17:00 the day before
       if (today >= dayBefore) {
         showMessage("changeOrderMessage", "❌ Không thể thay đổi món sau 17:00 ngày trước đó!");
         return;
       }
 
-      // Check if order exists and is in 'ordered' status
       db.ref("orders/" + uid + "/" + date).once("value").then(snapshot => {
         if (!snapshot.exists()) {
           showMessage("changeOrderMessage", "⚠️ Không tìm thấy đơn hàng cho ngày này!");
@@ -907,7 +982,6 @@
           return;
         }
 
-        // Update order with new food
         db.ref("orders/" + uid + "/" + date).update({
           food: newFood,
           url_food: defaultFoodImages[newFood] || ""
@@ -1241,14 +1315,12 @@
       tbody.innerHTML = '';
       let hasTransactions = false;
 
-      // Load single order payments
       db.ref("payments/" + uid).once("value").then(snapshot => {
         if (snapshot.exists()) {
           snapshot.forEach(child => {
             const paymentDate = child.key;
             const payment = child.val();
             if (payment.paid && payment.type === "single") {
-              // Fetch corresponding order to get food details
               db.ref("orders/" + uid + "/" + paymentDate).once("value").then(orderSnapshot => {
                 const order = orderSnapshot.val();
                 const foodName = order && order.food ? order.food : "Không xác định";
@@ -1263,7 +1335,6 @@
                 tbody.appendChild(row);
               }).catch(error => {
                 console.error("Error loading order for payment:", error);
-                // Display payment even if order data is missing
                 hasTransactions = true;
                 const row = document.createElement("tr");
                 row.innerHTML = `
@@ -1278,7 +1349,6 @@
           });
         }
 
-        // Load subscription payments
         db.ref("subscriptionPayments/" + uid).once("value").then(subSnapshot => {
           if (subSnapshot.exists()) {
             subSnapshot.forEach(child => {
@@ -1371,6 +1441,7 @@
           if (button.dataset.section === "transaction-history") loadTransactionHistory();
           if (button.dataset.section === "place-order") checkSubscriptionStatus(() => {});
           if (button.dataset.section === "change-order") updateChangeFoodImage();
+          if (button.dataset.section === "profile") loadUserProfile();
         });
       });
 
@@ -1380,6 +1451,7 @@
           if (e.key === "Enter" && input.closest("#place-order")) placeOrder();
           if (e.key === "Enter" && input.closest("#change-order")) changeOrder();
           if (e.key === "Enter" && input.closest("#change-password")) changePassword();
+          if (e.key === "Enter" && input.closest("#profile")) updateUserImageFromLink();
         });
       });
 

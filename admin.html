@@ -175,7 +175,7 @@
     }
 
     #regRfid {
-      padding-right: 50px; /* Adjusted for smaller button */
+      padding-right: 50px;
     }
 
     .generate-button {
@@ -187,7 +187,7 @@
       color: white;
       border: none;
       border-radius: 8px;
-      padding: 8px 10px; /* Reduced padding for text-only button */
+      padding: 8px 10px;
       font-size: 14px;
       cursor: pointer;
       transition: all 0.3s ease;
@@ -318,14 +318,14 @@
         align-items: stretch;
       }
       #regRfid {
-        padding-right: 12px; /* Reset padding on mobile */
+        padding-right: 12px;
       }
       .generate-button {
         position: static;
         transform: none;
         width: fit-content;
         margin: 10px auto 0;
-        padding: 8px 12px; /* Slightly wider for mobile */
+        padding: 8px 12px;
       }
     }
   </style>
@@ -351,10 +351,6 @@
       <div class="input-container">
         <input type="text" id="regTen" placeholder="Tên người dùng">
         <i class="fas fa-user"></i>
-      </div>
-      <div class="input-container">
-        <input type="text" id="regUrlImage" placeholder="URL ảnh người dùng">
-        <i class="fas fa-image"></i>
       </div>
       <div class="input-container">
         <input type="password" id="regPassword" placeholder="Mật khẩu">
@@ -408,7 +404,6 @@
             <th>RFID</th>
             <th>QR Code</th>
             <th>Vai trò</th>
-            <th>Ảnh</th>
           </tr>
         </thead>
         <tbody id="userTableBody"></tbody>
@@ -467,13 +462,11 @@
     }
 
     function generateCode() {
-      // Generate a 10-digit numeric code
       const generateUniqueCode = () => {
         const code = Math.floor(1000000000 + Math.random() * 9000000000).toString();
-        return code.padStart(10, '0'); // Ensure 10 digits with leading zeros
+        return code.padStart(10, '0');
       };
 
-      // Check if code is unique
       db.ref("users").once("value").then(snapshot => {
         let code = generateUniqueCode();
         let attempts = 0;
@@ -506,9 +499,9 @@
       const uid = document.getElementById("regUid").value.trim();
       const ten = document.getElementById("regTen").value.trim();
       let rfid = document.getElementById("regRfid").value.trim();
-      const urlImage = document.getElementById("regUrlImage").value.trim();
       const role = document.getElementById("regRole").value;
       const password = document.getElementById("regPassword").value;
+      const defaultImageUrl = "https://i.ibb.co/Lzqr982j/unknow-image.jpg";
 
       if (!uid || !ten || !password) {
         showMessage("addMessage", "⚠️ Vui lòng điền UID, tên và mật khẩu!");
@@ -520,12 +513,10 @@
         return;
       }
 
-      // If RFID is empty, generate a 10-digit code
       if (!rfid) {
         rfid = Math.floor(1000000000 + Math.random() * 9000000000).toString().padStart(10, '0');
       }
 
-      // Check if UID or RFID already exists
       db.ref("users").once("value").then(snapshot => {
         if (snapshot.child(uid).exists()) {
           showMessage("addMessage", "⚠️ UID đã tồn tại!");
@@ -543,15 +534,14 @@
           return;
         }
 
-        // Register user with rfid and qr_code
         console.log("Writing user data for", uid);
         db.ref("users/" + uid).set({
           ten,
           rfid,
-          qr_code: rfid, // Same as rfid
-          url_image: urlImage,
+          qr_code: rfid,
           role,
-          password
+          password,
+          url_image: defaultImageUrl
         }).then(() => {
           showMessage("addMessage", "✅ Đăng ký thành công!", true);
           document.querySelectorAll('#add-user input, #add-user select').forEach(el => el.value = '');
@@ -574,7 +564,6 @@
         return;
       }
 
-      // Check if UID exists and RFID is unique
       db.ref("users").once("value").then(snapshot => {
         if (!snapshot.child(uid).exists()) {
           showMessage("updateMessage", "⚠️ UID không tồn tại!");
@@ -593,7 +582,6 @@
           return;
         }
 
-        // Update only rfid and qr_code
         console.log("Updating RFID for", uid, "to", newRfid);
         db.ref("users/" + uid).update({
           rfid: newRfid,
@@ -698,7 +686,6 @@
               <td>${user.rfid || '-'}</td>
               <td>${user.qr_code || '-'}</td>
               <td>${roleDisplay}</td>
-              <td><img src="${user.url_image || 'https://via.placeholder.com/40'}" alt="avatar"></td>
             `;
             tbody.appendChild(row);
           });
