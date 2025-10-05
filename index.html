@@ -386,7 +386,7 @@
       <input type="password" id="loginPassword" placeholder=" ">
       <i class="fas fa-lock"></i>
       <label>Mật khẩu</label>
-      <i class="fas fa-eye toggle-password" onclick="togglePassword(this)"></i>
+      <!-- <i class="fas fa-eye toggle-password" onclick="togglePassword(this)"></i> -->
     </div>
     <button onclick="login()" id="loginButton">Đăng nhập</button>
     <!-- <button class="biometric-button" onclick="biometricLogin()">Đăng nhập bằng vân tay</button> -->
@@ -450,8 +450,8 @@
       const input = icon.previousElementSibling.previousElementSibling;
       const type = input.type === 'password' ? 'text' : 'password';
       input.type = type;
-      icon.classList.toggle('fa-eye');
-      icon.classList.toggle('fa-eye-slash');
+      // icon.classList.toggle('fa-eye');
+      // icon.classList.toggle('fa-eye-slash');
     }
 
     function showMessage(message, isError = true) {
