@@ -1101,10 +1101,10 @@
         return;
       }
 
-      if (!isValidOrderDay(date)) {
-        showMessage("changeOrderMessage", "⚠️ Không thể thay đổi món cho ngày Chủ Nhật!");
-        return;
-      }
+      // if (!isValidOrderDay(date)) {
+      //   showMessage("changeOrderMessage", "⚠️ Không thể thay đổi món cho ngày Chủ Nhật!");
+      //   return;
+      // }
 
       const today = new Date();
       const selectedDate = new Date(date);
@@ -1205,10 +1205,10 @@
         return;
       }
 
-      if (!isValidOrderDay(date)) {
-        showMessage("orderMessage", "⚠️ Không thể đặt món vào Chủ Nhật!");
-        return;
-      }
+      // if (!isValidOrderDay(date)) {
+      //   showMessage("orderMessage", "⚠️ Không thể đặt món vào Chủ Nhật!");
+      //   return;
+      // }
 
       currentOrder = {
         food: food,

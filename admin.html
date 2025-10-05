@@ -6,6 +6,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <style>
@@ -254,24 +255,24 @@
       color: #4CAF50;
     }
 
-    .user-table {
+    .user-table, .orders-table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 20px;
     }
 
-    .user-table th, .user-table td {
+    .user-table th, .user-table td, .orders-table th, .orders-table td {
       padding: 12px;
       text-align: left;
       border-bottom: 1px solid #eee;
     }
 
-    .user-table th {
+    .user-table th, .orders-table th {
       background: #4CAF50;
       color: white;
     }
 
-    .user-table tr:hover {
+    .user-table tr:hover, .orders-table tr:hover {
       background: #f5f5f5;
       cursor: pointer;
     }
@@ -337,6 +338,7 @@
     <button class="nav-button" data-section="update-user"><i class="fas fa-user-edit"></i> Cập nhật người dùng</button>
     <button class="nav-button" data-section="delete-user"><i class="fas fa-user-times"></i> Xóa người dùng</button>
     <button class="nav-button" data-section="list-user"><i class="fas fa-users"></i> Danh sách người dùng</button>
+    <button class="nav-button" data-section="daily-orders"><i class="fas fa-chart-bar"></i> Thống kê hôm nay</button>
     <button class="nav-button" data-section="change-password"><i class="fas fa-key"></i> Đổi mật khẩu</button>
     <button class="nav-button" data-section="about"><i class="fas fa-info-circle"></i> Về chúng tôi</button>
     <button class="logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Đăng xuất</button>
@@ -409,6 +411,23 @@
         <tbody id="userTableBody"></tbody>
       </table>
       <div class="message" id="listMessage"></div>
+    </div>
+    <div class="section" id="daily-orders">
+      <h3>Thống kê đặt món hôm nay</h3>
+      <table class="orders-table">
+        <thead>
+          <tr>
+            <th>UID</th>
+            <th>Tên</th>
+            <th>Món ăn</th>
+            <th>Giá</th>
+          </tr>
+        </thead>
+        <tbody id="dailyOrdersBody"></tbody>
+      </table>
+      <p id="dailySummary" class="text-center mt-4 font-bold"></p>
+      <button class="action-button" onclick="exportDailyOrders()">Xuất Excel</button>
+      <div class="message" id="dailyMessage"></div>
     </div>
     <div class="section" id="change-password">
       <h3>Đổi mật khẩu</h3>
@@ -698,6 +717,112 @@
       });
     }
 
+    function loadDailyOrders() {
+      const today = new Date().toISOString().split("T")[0];
+
+      // Fetch users to get names
+      db.ref("users").once("value").then(userSnapshot => {
+        const users = {};
+        if (userSnapshot.exists()) {
+          userSnapshot.forEach(child => {
+            users[child.key] = child.val().ten || '-';
+          });
+        }
+
+        // Fetch orders
+        db.ref("orders").once("value").then(orderSnapshot => {
+          const tbody = document.getElementById("dailyOrdersBody");
+          tbody.innerHTML = '';
+          let orders = [];
+          let hasOrders = false;
+
+          if (orderSnapshot.exists()) {
+            orderSnapshot.forEach(user => {
+              const userOrders = user.val();
+              if (userOrders && userOrders[today]) {
+                const order = userOrders[today];
+                if (order.status === "ordered") {
+                  hasOrders = true;
+                  const userName = users[user.key] || '-';
+                  orders.push({ uid: user.key, ten: userName, food: order.food, price: 25000 });
+                  const row = document.createElement("tr");
+                  row.innerHTML = `
+                    <td>${user.key}</td>
+                    <td>${userName}</td>
+                    <td>${order.food || '-'}</td>
+                    <td>25,000 VND</td>
+                  `;
+                  tbody.appendChild(row);
+                }
+              }
+            });
+          }
+
+          const totalOrders = orders.length;
+          const totalRevenue = orders.reduce((sum, order) => sum + order.price, 0);
+          document.getElementById("dailySummary").textContent = `Tổng đơn hàng: ${totalOrders} - Doanh thu: ${totalRevenue.toLocaleString()} VND`;
+
+          if (!hasOrders) {
+            showMessage("dailyMessage", "⚠️ Không có đơn hàng nào hôm nay!");
+          }
+        }).catch(error => {
+          console.error("Error loading daily orders:", error);
+          showMessage("dailyMessage", "❌ Lỗi khi tải dữ liệu: " + error.message);
+        });
+      }).catch(error => {
+        console.error("Error loading users:", error);
+        showMessage("dailyMessage", "❌ Lỗi khi tải dữ liệu người dùng: " + error.message);
+      });
+    }
+
+    function exportDailyOrders() {
+      const today = new Date().toISOString().split("T")[0];
+
+      // Fetch users to get names
+      db.ref("users").once("value").then(userSnapshot => {
+        const users = {};
+        if (userSnapshot.exists()) {
+          userSnapshot.forEach(child => {
+            users[child.key] = child.val().ten || '-';
+          });
+        }
+
+        // Fetch orders
+        db.ref("orders").once("value").then(orderSnapshot => {
+          let orders = [];
+          if (orderSnapshot.exists()) {
+            orderSnapshot.forEach(user => {
+              const userOrders = user.val();
+              if (userOrders && userOrders[today]) {
+                const order = userOrders[today];
+                if (order.status === "ordered") {
+                  const userName = users[user.key] || '-';
+                  orders.push({ UID: user.key, Tên: userName, Món_ăn: order.food, Giá: 25000 });
+                }
+              }
+            });
+          }
+
+          if (orders.length === 0) {
+            showMessage("dailyMessage", "⚠️ Không có dữ liệu để xuất!");
+            return;
+          }
+
+          const ws = XLSX.utils.json_to_sheet(orders);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "Đơn hàng hôm nay");
+          XLSX.writeFile(wb, `don_hang_${today}.xlsx`);
+          showMessage("dailyMessage", "✅ Đã xuất file Excel!", true);
+        }).catch(error => {
+          console.error("Error exporting orders:", error);
+          showMessage("dailyMessage", "❌ Lỗi khi xuất file: " + error.message);
+        });
+      }).catch(error => {
+        console.error("Error loading users:", error);
+        showMessage("dailyMessage", "❌ Lỗi khi tải dữ liệu người dùng: " + error.message);
+      });
+    }
+
     function logout() {
       auth.signOut().then(() => {
         localStorage.clear();
@@ -719,6 +844,7 @@
           sections.forEach(section => section.classList.remove("active"));
           document.getElementById(button.dataset.section).classList.add("active");
           if (button.dataset.section === "list-user") loadUsers();
+          if (button.dataset.section === "daily-orders") loadDailyOrders();
         });
       });
 
