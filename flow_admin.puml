@@ -1,0 +1,37 @@
+@startuml
+start
+
+:Admin vào admin.html;
+
+partition "Quản lý User" {
+    :Nhập UID, tên, mật khẩu, RFID, role;
+    if (UID đã tồn tại?) then (Có)
+        :Thông báo lỗi;
+    else (Không)
+        :Tạo user trong Firebase;
+    endif
+
+    :Cập nhật RFID user;
+    if (UID tồn tại?) then (Có)
+        :Ghi RFID mới;
+    else
+        :Thông báo lỗi không tìm thấy user;
+    endif
+
+    :Xóa user theo UID;
+}
+
+partition "Đơn hàng hôm nay" {
+    :Chọn tab đơn hàng hôm nay;
+    :Đọc danh sách đơn hàng theo ngày;
+    :Lọc đơn hàng status = ordered;
+    :Hiển thị bảng + tổng tiền;
+}
+
+partition "Gói tháng" {
+    :Đọc danh sách subscription;
+    :Hiển thị gói tháng active, expired;
+}
+
+stop
+@enduml

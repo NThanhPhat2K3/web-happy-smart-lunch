@@ -1,0 +1,35 @@
+@startuml
+start
+
+:User vào user.html;
+:Đọc UID từ localStorage;
+:Load thông tin user & subscription;
+
+repeat
+    :Hiển thị form đặt món;
+    :User chọn món và bấm Đặt cơm;
+
+    if (Ngày đặt hợp lệ?) then (Không)
+        :Thông báo không thể đặt cơm;
+    else (Có)
+        if (Có gói subscription đang active?) then (Có)
+            :Hỏi "Dùng suất trong gói tháng?";
+            if (Đồng ý?) then (Có)
+                :Ghi đơn hàng sử dụng gói tháng;
+            else (Không)
+                :Hiển thị QR thanh toán lẻ;
+                :User xác nhận đã thanh toán;
+                :Ghi đơn hàng thanh toán lẻ;
+            endif
+        else (Không có gói)
+            :Hiển thị QR thanh toán lẻ;
+            :User xác nhận thanh toán;
+            :Ghi đơn hàng;
+        endif
+    endif
+repeat while (Cần đặt lại?) is (Có)
+
+:Hiển thị trạng thái món đã đặt;
+
+stop
+@enduml

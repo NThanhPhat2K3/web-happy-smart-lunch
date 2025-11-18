@@ -1,0 +1,27 @@
+@startuml
+start
+
+: Mở trang index.html;
+
+partition "Đăng nhập thường" {
+    :Nhập UID và mật khẩu;
+    if (UID & mật khẩu hợp lệ?) then (Không)
+        :Hiển thị lỗi đăng nhập;
+        repeat
+            :Nhập lại UID/mật khẩu;
+        repeat while (Sai) is (Sai nữa)
+    else (Có)
+        :Đọc thông tin user từ Firebase;
+    endif
+}
+
+: Lưu UID & role vào localStorage;
+
+if (Role = admin?) then (Có)
+    :Chuyển sang admin.html;
+else (Không)
+    :Chuyển sang user.html;
+endif
+
+stop
+@enduml
