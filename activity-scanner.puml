@@ -1,0 +1,63 @@
+@startuml
+start
+:Khởi tạo hệ thống giao diện;
+
+' ==========================
+'  VÒNG LẶP KẾT NỐI WIFI
+' ==========================
+partition "Kết nối Wifi" { 
+    repeat
+        :Khởi tạo kết nối Wifi;
+
+        if (Kết nối thành công?) then (Đúng)
+            :Tắt timer (nếu đang chạy);
+        else (Sai)
+            :Khởi tạo hoặc tiếp tục timer 30s;
+        endif
+
+    repeat while (Kết nối thành công?) is (Sai)
+
+    :WiFi đã kết nối thành công;
+}
+
+' ==========================
+'  KẾT NỐI CSDL
+' ==========================
+partition "Kết nối CSDL" { 
+    :Kết nối Firebase; 
+    :Đồng bộ hoá CSDL xuống máy tính;
+}
+
+' ==========================
+'  KẾT NỐI THIẾT BỊ
+' ==========================
+partition "Kết nối thiết bị" { 
+    :Thiết lập kết nối với module RFID;
+    :Thiết lập kết nối với module Barcode;
+}
+
+' ==========================
+'  XỬ LÝ DỮ LIỆU
+' ==========================
+partition "Xử lý dữ liệu" { 
+    if (Có dữ liệu từ RFID hoặc Barcode?) then (Đúng)
+
+        if (Dữ liệu có trong CSDL?) then (Đúng)
+
+            if (Có đặt món hôm nay?) then (Đúng)
+                :Hiển thị thông tin user + món hôm nay;
+            else (Sai)
+                :Hiển thị không đặt món hôm nay;
+            endif
+
+        else (Sai)
+            :Hiển thị người dùng không hợp lệ;
+        endif
+
+    else (Sai)
+        :Không có dữ liệu từ thiết bị;
+    endif
+}
+
+stop
+@enduml
