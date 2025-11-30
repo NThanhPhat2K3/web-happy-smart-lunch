@@ -1,0 +1,72 @@
+@startuml
+' --- STYLE THEME ---
+skinparam backgroundColor #FFFFFF
+skinparam actorStyle awesome
+skinparam actor {
+  BackgroundColor #E3F2FD
+  BorderColor #1565C0
+  FontColor #0D47A1
+}
+
+skinparam usecase {
+  BackgroundColor #E8F5E9
+  BorderColor #2E7D32
+  FontColor #1B5E20
+}
+
+skinparam rectangle {
+  BorderColor #1B5E20
+  BackgroundColor #F1F8E9
+  RoundCorner 15
+}
+
+skinparam ArrowColor #333333
+skinparam defaultFontName Arial
+
+left to right direction
+title == **Food Ordering System – Use Case Diagram** ==
+
+' ==== ACTORS ====
+actor User as U
+actor Admin as A
+
+' ==== USER BOX ====
+rectangle "Các chức năng User" {
+    (Đăng nhập) as UC1
+    (Đặt món) as UC2
+    (Thanh toán) as UC3
+    (Thay đổi món ăn) as UC4
+    (Xem lịch sử món ăn) as UC5
+    (Xem thông tin người dùng) as UC6
+    (Mua gói khuyến mãi) as UC7
+    (Đổi mật khẩu) as UC8
+}
+
+' ==== ADMIN BOX ====
+rectangle "Các chức năng Admin" {
+    (Đăng nhập quản trị) as AC1
+    (Thêm người dùng) as AC2
+    (Xóa người dùng) as AC3
+    (Xem danh sách người dùng) as AC4
+    (Xem thống kê hôm nay) as AC5
+    (Đổi mật khẩu quản trị) as AC6
+}
+
+' ==== RELATIONSHIPS ====
+U --> UC1
+U --> UC2
+U --> UC3
+U --> UC4
+U --> UC5
+U --> UC6
+U --> UC7
+U --> UC8
+
+A --> AC1
+A --> AC2
+A --> AC3
+A --> AC4
+A --> AC5
+A --> AC6
+
+@enduml

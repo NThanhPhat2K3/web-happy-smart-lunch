@@ -1,0 +1,46 @@
+@startuml
+' --- STYLE THEME ---
+skinparam backgroundColor #FFFFFF
+skinparam actorStyle awesome
+skinparam actor {
+  BackgroundColor #E3F2FD
+  BorderColor #1565C0
+  FontColor #0D47A1
+}
+
+skinparam usecase {
+  BackgroundColor #E8F5E9
+  BorderColor #2E7D32
+  FontColor #1B5E20
+}
+
+skinparam rectangle {
+  BorderColor #1B5E20
+  BackgroundColor #F1F8E9
+  RoundCorner 15
+}
+
+skinparam ArrowColor #333333
+skinparam defaultFontName Arial
+
+left to right direction
+title == **Food Ordering System – Use Case Diagram** ==
+
+' ==== ACTORS ====
+actor User as U
+
+' ==== USER BOX ====
+rectangle "Các chức năng User" {
+    (Quẹt thẻ RFID) as UC1
+    (Quét mã QR Code) as UC2
+    (Xác thực thông tin sinh viên) as UC3
+    (Hiển thị trạng thái nhận cơm) as UC4
+}
+
+' ==== RELATIONSHIPS ====
+U --> UC1
+U --> UC2
+U --> UC3
+U --> UC4
+
+@enduml

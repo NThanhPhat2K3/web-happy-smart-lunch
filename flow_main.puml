@@ -1,7 +1,7 @@
 @startuml
 start
 
-: Mở trang index.html;
+: Mở trang giao diện đăng nhập;
 
 partition "Đăng nhập thường" {
     :Nhập UID và mật khẩu;
@@ -18,7 +18,7 @@ partition "Đăng nhập thường" {
 : Lưu UID & role vào localStorage;
 
 if (Role = admin?) then (Có)
-    :Chuyển sang admin.html;
+    :Chuyển sang giao diện admin;
 else (Không)
     :Chuyển sang user.html;
 endif

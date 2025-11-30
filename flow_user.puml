@@ -1,7 +1,7 @@
 @startuml
 start
 
-:User vào user.html;
+:User vào giao diện cho user;
 :Đọc UID từ localStorage;
 :Load thông tin user & subscription;
 
